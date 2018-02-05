@@ -31,9 +31,9 @@ compile:
     - go get github.com/progrium/gh-release
     - go get github.com/mholt/caddy
     - go get github.com/miekg/dns
-    - go get golang.org/x/net
+    - go get golang.org/x/net/context
     - go get golang.org/x/text
-    - go get github.com/coredns/forward
+    = go get github.com/coredns/forward 
     - go get github.com/prometheus/client_golang/prometheus/promhttp
     - go  get -u github.com/prometheus/client_golang/prometheus
     - make -j $(getconf _NPROCESSORS_ONLN)
