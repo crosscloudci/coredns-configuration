@@ -26,7 +26,7 @@ compile:
   image: golang:stretch
   stage: build
   script:
-    - ln -s /builds /go/src/github.com
+    # - ln -s /builds /go/src/github.com
     - sleep 1000000
     - make -j $(getconf _NPROCESSORS_ONLN) all
   artifacts:
