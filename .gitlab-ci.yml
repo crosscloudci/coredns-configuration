@@ -25,6 +25,7 @@ compile:
   image: crosscloudci/debian-go
   stage: build
   script:
+    - sleep 20000
     - ln -s /builds /go/src/github.com
     - cd /go/src/github.com/coredns/coredns
     - make -j $(getconf _NPROCESSORS_ONLN) all
