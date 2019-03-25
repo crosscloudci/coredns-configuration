@@ -27,7 +27,6 @@ compile:
   script:
     - ln -s /builds /go/src/github.com
     - cd /go/src/github.com/coredns/coredns
-    - make godeps
     - make all
     - make TEST_TYPE=coverage travis
     - make TEST_TYPE=integration travis
