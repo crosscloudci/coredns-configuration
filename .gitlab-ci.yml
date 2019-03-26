@@ -24,6 +24,8 @@ before_script:
 compile:
   image: crosscloudci/debian-go
   stage: build
+  tags:
+    - aufs
   script:
     - ln -s /builds /go/src/github.com
     - cd /go/src/github.com/coredns/coredns
@@ -49,8 +51,10 @@ compile:
       - ./coredns
 
 container:
-  stage: package
   image: crosscloudci/debian-docker 
+  stage: package
+  tags:
+    - aufs
   script:
     - IMAGE_TAG=${CI_COMMIT_REF_NAME}.${CI_COMMIT_SHA_SHORT}.${CI_JOB_ID}
     - cp build/Linux/coredns . || true
