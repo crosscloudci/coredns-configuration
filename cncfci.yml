@@ -1,5 +1,5 @@
 project:
-  logo_url: "https://raw.githubusercontent.com/cncf/artwork/master/coredns/icon/color/coredns-icon-color.svg?sanitize=true"
+  logo_url: "https://raw.githubusercontent.com/cncf/artwork/master/projects/coredns/icon/color/coredns-icon-color.svg?sanitize=true"
   display_name: CoreDNS
   sub_title: Service Discovery
   project_url: "https://github.com/coredns/coredns" 
