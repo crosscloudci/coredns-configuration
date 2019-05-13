@@ -3,3 +3,6 @@ project:
   display_name: CoreDNS
   sub_title: Service Discovery
   project_url: "https://github.com/coredns/coredns" 
+  arch:
+    - "amd64"
+    - "arm64" 
