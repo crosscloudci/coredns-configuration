@@ -27,8 +27,8 @@ compile:
   tags:
     - aufs
   script:
-    - sleep 10000000
-    - ln -s /builds /go/src/github.com
+    - mkdir -p /go/src/github.com/coredns
+    - ln -s $(pwd) /go/src/github.com/coredns
     - cd /go/src/github.com/coredns/coredns
     - GO111MODULE=on go mod download
     - >
