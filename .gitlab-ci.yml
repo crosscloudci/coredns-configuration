@@ -24,8 +24,6 @@ before_script:
 compile:
   image: crosscloudci/debian-go
   stage: build
-  tags:
-    - aufs
   script:
     - mkdir -p /go/src/github.com/coredns
     - ln -s $(pwd) /go/src/github.com/coredns
@@ -66,8 +64,6 @@ compile:
 container:
   image: crosscloudci/debian-docker 
   stage: package
-  tags:
-    - aufs
   script:
     - >
       if [ "$ARCH" == "arm64" ]; then
