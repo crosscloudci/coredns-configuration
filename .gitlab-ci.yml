@@ -87,3 +87,44 @@ container:
     expire_in: 5 weeks
     paths:
       - release.env
+chaos:
+  stage: test
+  image: ubuntu
+  script:
+    - apt-get update && apt-get install docker.io -y && apt-get install curl -y && apt-get install wget
+    - service docker start
+    - docker version
+    - wget https://dl.google.com/go/go1.13.5.linux-amd64.tar.gz && tar zxf go1.13.5.linux-amd64.tar.gz -C /usr/local/
+    - export PATH=$PATH:/usr/local/go/bin
+    - GO111MODULE="on" go get sigs.k8s.io/kind@v0.6.1 && export PATH=$PATH:~/go/bin
+    - kind version
+    - kind create cluster --loglevel debug
+    - kubectl get nodes
+    - export KUBECONFIG="$(kind get kubeconfig-path --name="kind")"
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.17.0/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+    - kubectl version
+    - kubectl set image deployment/coredns -n kube-system coredns="$CI_REGISTRY_IMAGE:$IMAGE_TAG"
+    - kubectl get pods -n kube-system
+    - kubectl apply -f https://litmuschaos.github.io/pages/litmus-operator-v1.1.0.yaml
+    - sleep 40
+    - kubectl get pods -n litmus
+    - kubectl annotate deploy/coredns -n kube-system litmuschaos.io/chaos="true"
+    - kubectl apply -f https://raw.githubusercontent.com/litmuschaos/chaos-charts/master/charts/coredns/coredns-pod-delete/rbac.yaml
+    - kubectl apply -f https://hub.litmuschaos.io/api/chaos?file=charts/coredns/experiments.yaml -n kube-system
+    - kubectl apply -f https://raw.githubusercontent.com/litmuschaos/chaos-charts/master/charts/coredns/coredns-pod-delete/engine.yaml
+    - sleep 145
+    - kubectl get pods -n kube-system
+    - kubectl logs -f -l name=coredns-pod-delete -n kube-system
+    - kubectl logs -f engine-coredns-runner -n kube-system
+    - kubectl get chaosresult  -n kube-system
+    - verdict=$(kubectl get chaosresult engine-coredns-coredns-pod-delete -n kube-system -o jsonpath='{.status.experimentstatus.verdict}')
+    - >
+      if [ "$verdict" == "pass" ]; then
+        kind delete cluster
+        exit 0;    
+      else
+        kind delete cluster
+        exit 1;           
+      fi
