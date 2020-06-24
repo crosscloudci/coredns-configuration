@@ -1,6 +1,7 @@
 stages:
   - build
   - package
+  - test
 
 before_script:
   - export BASE_URL=${BASE_URL:-$(echo $CI_PROJECT_URL |  cut -d'/' -f1-3)}
@@ -87,3 +88,69 @@ container:
     expire_in: 5 weeks
     paths:
       - release.env
+chaos:
+  stage: test
+  image: ubuntu
+  script:
+    - apt-get update && apt-get install docker.io -y && apt-get install curl -y && apt-get install wget
+    - docker version
+    # Installing KIND cluster to run the chaos experiments
+    - if [ "$ARCH" == "arm64" ]; then
+        echo 'ARCH set to arm64';
+        curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.7.0/kind-$(uname)-arm64;
+      else
+        echo 'Default to amd64 (Intel)';
+        curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.7.0/kind-$(uname)-amd64;
+      fi
+    - chmod +x ./kind
+    - mv ./kind /usr/local/bin/kind
+    - kind version
+    - kind create cluster --loglevel debug
+    - if [ "$ARCH" == "arm64" ]; then
+        echo 'ARCH set to arm64';
+        curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.17.0/bin/linux/arm64/kubectl;
+      else
+        echo 'Default to amd64 (Intel)';
+        curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.17.0/bin/linux/amd64/kubectl;
+      fi
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+    - kubectl version
+    - kubectl get nodes
+    # Replacing CoreDNS image with the latest build image
+    - kubectl set image deployment/coredns -n kube-system coredns="$CI_REGISTRY_IMAGE:$IMAGE_TAG"
+    - kubectl get pods -n kube-system
+
+    # Running CoreDNS Pod Delete chaos experiment using Litmus
+    # Documentation- https://docs.litmuschaos.io/docs/coredns-pod-delete/
+    # Chaos Hub- https://hub.litmuschaos.io/charts/coredns/experiments/coredns-pod-delete
+
+    - kubectl apply -f https://litmuschaos.github.io/pages/litmus-operator-v1.2.0.yaml
+    - kubectl get pods -n litmus
+    - kubectl annotate deploy/coredns -n kube-system litmuschaos.io/chaos="true"
+    # Applying RBAC spec with with [ services", "pods","jobs","events","pods/log","chaosengines","chaosexperiments","chaosresults"] resource permission
+    - kubectl apply -f https://raw.githubusercontent.com/litmuschaos/chaos-charts/master/charts/coredns/coredns-pod-delete/rbac.yaml
+    # Installing CoreDNS pod Delete experiment from the chaoshub
+    - kubectl apply -f https://hub.litmuschaos.io/api/chaos?file=charts/coredns/experiments.yaml -n kube-system
+    # Applying chaos engine to the experiment
+    - kubectl apply -f https://raw.githubusercontent.com/litmuschaos/chaos-charts/master/charts/coredns/coredns-pod-delete/engine.yaml
+    # Waiting until the coredns experiment job pod is in Ready state
+    - >
+      while [[ $(kubectl get pods -l name=coredns-pod-delete -n kube-system -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do 
+        echo "waiting for pod" && sleep 5; 
+      done
+    # Waiting until the chaos engine pod is deleted
+    - kubectl wait --timeout=-1s --for=delete pod -l app=engine-coredns -n kube-system
+    - kubectl get pods -n kube-system
+    - kubectl get chaosresult -n kube-system
+    - verdict=$(kubectl get chaosresult engine-coredns-coredns-pod-delete -n kube-system -o jsonpath='{.status.experimentstatus.verdict}')
+    - >
+      if [ "$verdict" == "Pass" ]; then
+        echo "Chaos Result verdict is Pass for the coreDNS Pod Delete experiment";
+        kind delete cluster;
+        exit 0;    
+      else
+        echo "Chaos Result verdict is Fail for the coreDNS Pod Delete experiment";
+        kind delete cluster;
+        exit 1;           
+      fi
