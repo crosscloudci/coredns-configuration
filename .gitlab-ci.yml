@@ -1,7 +1,7 @@
 stages:
   - build
   - package
-  - test
+  # - test
 
 before_script:
   - export BASE_URL=${BASE_URL:-$(echo $CI_PROJECT_URL |  cut -d'/' -f1-3)}
